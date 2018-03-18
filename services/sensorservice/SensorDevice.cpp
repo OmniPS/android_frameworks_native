@@ -26,6 +26,7 @@
 #include <cinttypes>
 #include <thread>
 
+
 using android::hardware::hidl_vec;
 
 using namespace android::hardware::sensors::V1_0;
@@ -88,8 +89,8 @@ SensorDevice::SensorDevice() : mHidlTransportErrors(20) {
 
 bool SensorDevice::connectHidlService() {
     // SensorDevice may wait upto 100ms * 10 = 1s for hidl service.
-    constexpr auto RETRY_DELAY = std::chrono::milliseconds(100);
-    size_t retry = 10;
+    constexpr auto RETRY_DELAY = std::chrono::milliseconds(1000);
+    size_t retry = 100;
 
     while (true) {
         int initStep = 0;
@@ -229,6 +230,7 @@ void SensorDevice::autoDisable(void *ident, int handle) {
 }
 
 status_t SensorDevice::activate(void* ident, int handle, int enabled) {
+
     if (mSensors == nullptr) return NO_INIT;
 
     status_t err(NO_ERROR);

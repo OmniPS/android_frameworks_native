@@ -34,10 +34,12 @@
 #include <utils/Vector.h>
 #include <utils/threads.h>
 
+
 #include <stdint.h>
 #include <sys/types.h>
 #include <unordered_map>
 #include <unordered_set>
+
 
 #if __clang__
 // Clang warns about SensorEventConnection::dump hiding BBinder::dump. The cause isn't fixable
@@ -47,7 +49,7 @@
 
 // ---------------------------------------------------------------------------
 #define IGNORE_HARDWARE_FUSION  false
-#define DEBUG_CONNECTIONS   false
+#define DEBUG_CONNECTIONS   true
 // Max size is 100 KB which is enough to accept a batch of about 1000 events.
 #define MAX_SOCKET_BUFFER_SIZE_BATCHED (100 * 1024)
 // For older HALs which don't support batching, use a smaller socket buffer size.
@@ -84,6 +86,9 @@ public:
 
     status_t flushSensor(const sp<SensorEventConnection>& connection,
                          const String16& opPackageName);
+
+    void suspend(bool wakeup);
+    void resume();
 
 private:
     friend class BinderService<SensorService>;
@@ -230,6 +235,8 @@ private:
 
     SensorList mSensors;
     status_t mInitCheck;
+
+    bool suspended;
 
     // Socket buffersize used to initialize BitTube. This size depends on whether batching is
     // supported or not.

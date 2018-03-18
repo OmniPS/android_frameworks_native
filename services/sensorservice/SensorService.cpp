@@ -52,6 +52,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+
 namespace android {
 // ---------------------------------------------------------------------------
 
@@ -550,15 +551,20 @@ bool SensorService::threadLoop() {
         // sending events to clients (incrementing SensorEventConnection::mWakeLockRefCount) should
         // not be interleaved with decrementing SensorEventConnection::mWakeLockRefCount and
         // releasing the wakelock.
+
+	//ALOGE("sensor poll has returned");
         bool bufferHasWakeUpEvent = false;
         for (int i = 0; i < count; i++) {
             if (isWakeUpSensorEvent(mSensorEventBuffer[i])) {
+		ALOGE("wakeup sensor event detected");
                 bufferHasWakeUpEvent = true;
                 break;
-            }
+            } else {
+		//ALOGE("non-wakeup sensor event detected");
+	    }
         }
 
-        if (bufferHasWakeUpEvent && !mWakeLockAcquired) {
+        if (bufferHasWakeUpEvent /*&& !mWakeLockAcquired*/) {
             setWakeLockAcquiredLocked(true);
         }
         recordLastValueLocked(mSensorEventBuffer, count);
@@ -725,14 +731,18 @@ void SensorService::resetAllWakeLockRefCounts() {
 }
 
 void SensorService::setWakeLockAcquiredLocked(bool acquire) {
+    ALOGE("setWakeLockAcquiredLocked %d", acquire);
+
     if (acquire) {
         if (!mWakeLockAcquired) {
+    	    ALOGE("setWakeLockAcquiredLocked acquire");
             acquire_wake_lock(PARTIAL_WAKE_LOCK, WAKE_LOCK_NAME);
             mWakeLockAcquired = true;
         }
         mLooper->wake();
     } else {
         if (mWakeLockAcquired) {
+    	    ALOGE("setWakeLockAcquiredLocked release");
             release_wake_lock(WAKE_LOCK_NAME);
             mWakeLockAcquired = false;
         }
@@ -1043,8 +1053,18 @@ int SensorService::setOperationParameter(
             const Vector<float> &floats, const Vector<int32_t> &ints) {
     Mutex::Autolock _l(mLock);
 
+    ALOGI("Set operation parameters for %d", handle);
+
     if (!checkCallingPermission(sLocationHardwarePermission, nullptr, nullptr)) {
         return PERMISSION_DENIED;
+    }
+
+    if( handle == -1 ) {
+        suspend(type==1);
+        return NO_ERROR;
+    } else if( handle == -2 ) {
+        resume();
+        return NO_ERROR;
     }
 
     bool isFloat = true;
@@ -1142,6 +1162,37 @@ status_t SensorService::resetToNormalModeLocked() {
         dev.enableAllSensors();
     }
     return err;
+}
+
+
+void SensorService::suspend(bool wakeup) {
+    ALOGI( "Suspend");
+    //Mutex::Autolock _l(mLock);
+    if( suspended ) {
+        ALOGI( "Suspended");
+        return;
+    }
+    if( wakeup ) ALOGI( "Suspending wakeup");
+    suspended = true;
+    SensorDevice& dev(SensorDevice::getInstance());
+    
+    dev.disableAllSensors();    
+}
+
+void SensorService::resume() {
+    ALOGI( "Resume");
+
+    //Mutex::Autolock _l(mLock);
+    if( !suspended ) {
+        ALOGI( "Resumed"); 
+        return;
+    }
+
+    ALOGI( "Resuming");
+
+    suspended = false;
+    SensorDevice& dev(SensorDevice::getInstance());
+    dev.enableAllSensors();
 }
 
 void SensorService::cleanupConnection(SensorEventConnection* c) {
@@ -1308,7 +1359,9 @@ status_t SensorService::enable(const sp<SensorEventConnection>& connection,
 
     if (err == NO_ERROR) {
         ALOGD_IF(DEBUG_CONNECTIONS, "Calling activate on %d", handle);
-        err = sensor->activate(connection.get(), true);
+        if( !suspended ) {
+            err = sensor->activate(connection.get(), true);
+        }
     }
 
     if (err == NO_ERROR) {

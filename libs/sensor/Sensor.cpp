@@ -84,6 +84,12 @@ Sensor::Sensor(struct sensor_t const& hwSensor, const uuid_t& uuid, int halVersi
     // HALs. Newer HALs can define both wake-up and non wake-up proximity sensors.
     // All the OEM defined defined sensors have flags set to whatever is provided by the HAL.
     switch (mType) {
+    case 33171016: // SDV!  Hack for HALL sensor
+        mStringType = "HALL Sensor";
+        if( hwSensor.stringType ) mStringType = hwSensor.stringType;
+        mFlags |= SENSOR_FLAG_WAKE_UP;
+        mFlags |= SENSOR_FLAG_ON_CHANGE_MODE;
+	    break;
     case SENSOR_TYPE_ACCELEROMETER:
         mStringType = SENSOR_STRING_TYPE_ACCELEROMETER;
         mFlags |= SENSOR_FLAG_CONTINUOUS_MODE;

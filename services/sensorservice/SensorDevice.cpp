@@ -398,7 +398,7 @@ void SensorDevice::enableAllSensors() {
     if (mSensors == nullptr) return;
     Mutex::Autolock _l(mLock);
     mDisabledClients.clear();
-    ALOGI("cleared mDisabledClients");
+    ALOGD("cleared mDisabledClients");
     for (size_t i = 0; i< mActivationCount.size(); ++i) {
         Info& info = mActivationCount.editValueAt(i);
         if (info.batchParams.isEmpty()) continue;
@@ -422,6 +422,9 @@ void SensorDevice::enableAllSensors() {
 }
 
 void SensorDevice::disableAllSensors() {
+    disableAllSensors(true);    
+}
+void SensorDevice::disableAllSensors(bool wakeup) {
     if (mSensors == nullptr) return;
     Mutex::Autolock _l(mLock);
     for (size_t i = 0; i< mActivationCount.size(); ++i) {
@@ -429,9 +432,19 @@ void SensorDevice::disableAllSensors() {
         // Check if this sensor has been activated previously and disable it.
         if (info.batchParams.size() > 0) {
            const int sensor_handle = mActivationCount.keyAt(i);
-           ALOGD_IF(DEBUG_CONNECTIONS, "\t>> actuating h/w sensor disable handle=%d ",
-                   sensor_handle);
-           checkReturn(mSensors->activate(sensor_handle, 0 /* enabled */));
+            int enable = 0;
+            if( wakeup ) { 
+                if( /*sensor_handle == 8 ||*/
+                    sensor_handle == 42 /*33171016*/ ) {
+                    enable = 1;
+                }
+            }
+
+           ALOGD_IF(DEBUG_CONNECTIONS, "\t>> actuating h/w sensor disable handle=%d, state=%d",
+                   sensor_handle, enable);
+
+
+           checkReturn(mSensors->activate(sensor_handle, enable /* enabled */));
 
            // Add all the connections that were registered for this sensor to the disabled
            // clients list.

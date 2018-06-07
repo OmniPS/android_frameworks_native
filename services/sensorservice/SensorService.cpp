@@ -532,6 +532,8 @@ bool SensorService::threadLoop() {
             break;
         }
 
+        ALOGD("sensor polled (%d)", (int)count);
+
         // Reset sensors_event_t.flags to zero for all events in the buffer.
         for (int i = 0; i < count; i++) {
              mSensorEventBuffer[i].flags = 0;
@@ -557,12 +559,12 @@ bool SensorService::threadLoop() {
         bool bufferHasWakeUpEvent = false;
         for (int i = 0; i < count; i++) {
             if (isWakeUpSensorEvent(mSensorEventBuffer[i])) {
-		ALOGE("wakeup sensor event detected");
+		        ALOGD("wakeup sensor event detected");
                 bufferHasWakeUpEvent = true;
                 break;
             } else {
-		//ALOGE("non-wakeup sensor event detected");
-	    }
+		        ALOGD("non-wakeup sensor event detected");
+	        }
         }
 
         if (bufferHasWakeUpEvent /*&& !mWakeLockAcquired*/) {
@@ -732,18 +734,18 @@ void SensorService::resetAllWakeLockRefCounts() {
 }
 
 void SensorService::setWakeLockAcquiredLocked(bool acquire) {
-    ALOGE("setWakeLockAcquiredLocked %d", acquire);
+    ALOGD("setWakeLockAcquiredLocked %d", acquire);
 
     if (acquire) {
         if (!mWakeLockAcquired) {
-    	    ALOGE("setWakeLockAcquiredLocked acquire");
+    	    ALOGD("setWakeLockAcquiredLocked acquire");
             acquire_wake_lock(PARTIAL_WAKE_LOCK, WAKE_LOCK_NAME);
             mWakeLockAcquired = true;
         }
         mLooper->wake();
     } else {
         if (mWakeLockAcquired) {
-    	    ALOGE("setWakeLockAcquiredLocked release");
+    	    ALOGD("setWakeLockAcquiredLocked release");
             release_wake_lock(WAKE_LOCK_NAME);
             mWakeLockAcquired = false;
         }
@@ -1065,10 +1067,10 @@ int SensorService::setOperationParameter(
         return PERMISSION_DENIED;
     }
 
-    if( handle == -1 ) {
+    if( handle == -11 ) {
         suspend(type==1);
         return NO_ERROR;
-    } else if( handle == -2 ) {
+    } else if( handle == -12 ) {
         resume();
         return NO_ERROR;
     }
@@ -1172,29 +1174,29 @@ status_t SensorService::resetToNormalModeLocked() {
 
 
 void SensorService::suspend(bool wakeup) {
-    ALOGI( "Suspend");
+    ALOGD( "Suspend");
     //Mutex::Autolock _l(mLock);
     if( suspended ) {
-        ALOGI( "Suspended");
+        ALOGD( "Suspended");
         return;
     }
-    if( wakeup ) ALOGI( "Suspending wakeup");
+    if( wakeup ) ALOGD( "Suspending wakeup");
     suspended = true;
     SensorDevice& dev(SensorDevice::getInstance());
     
-    dev.disableAllSensors();    
+    dev.disableAllSensors(wakeup);    
 }
 
 void SensorService::resume() {
-    ALOGI( "Resume");
+    ALOGD( "Resume");
 
     //Mutex::Autolock _l(mLock);
     if( !suspended ) {
-        ALOGI( "Resumed"); 
+        ALOGD( "Resumed"); 
         return;
     }
 
-    ALOGI( "Resuming");
+    ALOGD( "Resuming");
 
     suspended = false;
     SensorDevice& dev(SensorDevice::getInstance());
@@ -1364,9 +1366,11 @@ status_t SensorService::enable(const sp<SensorEventConnection>& connection,
     }
 
     if (err == NO_ERROR) {
-        ALOGD_IF(DEBUG_CONNECTIONS, "Calling activate on %d", handle);
         if( !suspended ) {
+            ALOGD_IF(DEBUG_CONNECTIONS, "Calling activate on %d", handle);
             err = sensor->activate(connection.get(), true);
+        } else {
+            ALOGD_IF(DEBUG_CONNECTIONS, "Suspended. Postpone activate on %d", handle);
         }
     }
 
